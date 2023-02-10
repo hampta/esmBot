@@ -1,7 +1,7 @@
 import { log } from "../utils/logger.js";
 
 export default async (client, member, guild) => {
-    log(`[GUILD MEMBER ADD] ${member.user.username} (${member.user.id}) joined ${member.guild.name} (${member.guild.id}).`);
+    log(`[GUILD MEMBER ADD] ${member.user.username} (${member.user.id}) joined $guild.name} (${guild.id}).`);
     // add a role to the member when they join the server
 
     // leave embed message
@@ -13,7 +13,7 @@ export default async (client, member, guild) => {
             url: member.user.avatarURL()
         },
         footer: {
-            text: `User ID: ${member.user.id} | ${member.guild.memberCount} members`
+            text: `User ID: ${member.user.id} | ${guild.memberCount} members`
         },
         timestamp: new Date().toISOString()
     };
