@@ -1,6 +1,6 @@
 import { log } from "../utils/logger.js";
 
-export default async (client, member) => {
+export default async (member, guild) => {
     log(`[GUILD MEMBER ADD] ${member.user.username} (${member.user.id}) joined ${member.guild.name} (${member.guild.id}).`);
     // add a role to the member when they join the server
 
