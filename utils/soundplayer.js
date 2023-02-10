@@ -13,7 +13,7 @@ export let nodes = JSON.parse(fs.readFileSync(new URL("../config/servers.json", 
 export let connected = false;
 
 export function connect(client) {
-  manager = new Shoukaku(new Connectors.OceanicJS(client), nodes, { moveOnDisconnect: true, resume: true, reconnectInterval: 500, reconnectTries: 1 });
+  manager = new Shoukaku(new Connectors.OceanicJS(client), nodes, { moveOnDisconnect: true, resume: true, reconnectInterval: 1500, reconnectTries: 6 });
   manager.on("error", (node, error) => {
     logger.error(`An error occurred on Lavalink node ${node}: ${error}`);
   });
