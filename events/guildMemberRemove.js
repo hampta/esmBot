@@ -1,19 +1,19 @@
 import { log } from "../utils/logger.js";
 
-export default async (client, member, guild) => {
-    log(`[GUILD MEMBER ADD] ${member.user.username} (${member.user.id}) joined $guild.name} (${guild.id}).`);
+export default async (client, user, guild) => {
+    log(`[GUILD MEMBER REMOVE] ${user.username} (${user.id}) left.`);
     // add a role to the member when they join the server
-
+    const _guild = await client.guilds.get(guild.id);
     // leave embed message
     const embed = {
-        title: `Goodbye ${member.user.username}!`,
+        title: `Goodbye ${user.username}!`,
         description: `We hope you enjoyed your stay!`,
         color: 0xff0000,
         thumbnail: {
-            url: member.user.avatarURL()
+            url: user.avatarURL()
         },
         footer: {
-            text: `User ID: ${member.user.id} | ${guild.memberCount} members`
+            text: `User ID: ${user.id} | ${_guild.memberCount} members`
         },
         timestamp: new Date().toISOString()
     };
