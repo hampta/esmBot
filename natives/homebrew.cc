@@ -5,7 +5,8 @@
 using namespace std;
 using namespace vips;
 
-char *Homebrew(string *type, ArgumentMap Arguments, size_t *DataSize) {
+ArgumentMap Homebrew(string type, string *outType, ArgumentMap Arguments,
+               size_t *DataSize) {
   string caption = GetArgument<string>(Arguments, "caption");
   string basePath = GetArgument<string>(Arguments, "basePath");
 
@@ -30,9 +31,10 @@ char *Homebrew(string *type, ArgumentMap Arguments, size_t *DataSize) {
                                  ->set("y", 300 - (text.height() / 2) - 8));
 
   void *buf;
-  out.write_to_buffer(".png", &buf, DataSize);
+  out.write_to_buffer(("." + *outType).c_str(), &buf, DataSize);
 
-  *type = "png";
+  ArgumentMap output;
+  output["buf"] = (char *)buf;
 
-  return (char *)buf;
+  return output;
 }

@@ -7,8 +7,8 @@
 using namespace std;
 using namespace vips;
 
-char *CaptionTwo(string *type, char *BufferData, size_t BufferLength,
-                 ArgumentMap Arguments, size_t *DataSize) {
+ArgumentMap CaptionTwo(string type, string *outType, char *BufferData,
+                 size_t BufferLength, ArgumentMap Arguments, size_t *DataSize) {
   bool top = GetArgument<bool>(Arguments, "top");
   string caption = GetArgument<string>(Arguments, "caption");
   string font = GetArgument<string>(Arguments, "font");
@@ -18,7 +18,7 @@ char *CaptionTwo(string *type, char *BufferData, size_t BufferLength,
 
   VImage in =
       VImage::new_from_buffer(BufferData, BufferLength, "",
-                              *type == "gif" ? options->set("n", -1) : options)
+                              type == "gif" ? options->set("n", -1) : options)
           .colourspace(VIPS_INTERPRETATION_sRGB);
 
   if (!in.has_alpha()) in = in.bandjoin(255);
@@ -50,7 +50,7 @@ char *CaptionTwo(string *type, char *BufferData, size_t BufferLength,
           ->set("align", VIPS_ALIGN_LOW)
           ->set("width", textWidth));
   VImage captionImage =
-      ((text == (vector<double>){0, 0, 0, 0}).bandand())
+      ((text == zeroVec).bandand())
           .ifthenelse(255, text)
           .embed(width / 25, width / 25, width, text.height() + size,
                  VImage::option()->set("extend", "white"));
@@ -58,7 +58,7 @@ char *CaptionTwo(string *type, char *BufferData, size_t BufferLength,
   vector<VImage> img;
   for (int i = 0; i < nPages; i++) {
     VImage img_frame =
-        *type == "gif" ? in.crop(0, i * pageHeight, width, pageHeight) : in;
+        type == "gif" ? in.crop(0, i * pageHeight, width, pageHeight) : in;
     VImage frame =
         (top ? captionImage : img_frame)
             .join(top ? img_frame : captionImage, VIPS_DIRECTION_VERTICAL,
@@ -72,9 +72,13 @@ char *CaptionTwo(string *type, char *BufferData, size_t BufferLength,
 
   void *buf;
   final.write_to_buffer(
-      ("." + *type).c_str(), &buf, DataSize,
-      *type == "gif" ? VImage::option()->set("dither", 0)->set("reoptimise", 1)
-                     : 0);
+      ("." + *outType).c_str(), &buf, DataSize,
+      *outType == "gif"
+          ? VImage::option()->set("dither", 0)->set("reoptimise", 1)
+          : 0);
 
-  return (char *)buf;
+  ArgumentMap output;
+  output["buf"] = (char *)buf;
+
+  return output;
 }

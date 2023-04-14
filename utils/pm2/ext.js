@@ -66,45 +66,49 @@ process.on("message", (packet) => {
   }
 });
 
-function updateStats() {
+function getProcesses() {
+  return new Promise((resolve, reject) => {
+    pm2.list((err, list) => {
+      if (err) reject(err);
+      resolve(list.filter((v) => v.name.includes("esmBot-proc")));
+    });
+  });
+}
+
+async function updateStats() {
   serverCount = 0;
   shardCount = 0;
   clusterCount = 0;
   responseCount = 0;
-  return new Promise((resolve, reject) => {
-    pm2.list((err, list) => {
-      if (err) reject(err);
-      const clusters = list.filter((v) => v.name.includes("esmBot-proc"));
-      clusterCount = clusters.length;
-      const listener = (packet) => {
-        if (packet.data?.type === "serverCounts") {
-          clearTimeout(timeout);
-          serverCount += packet.data.guilds;
-          shardCount += packet.data.shards;
-          responseCount += 1;
-          if (responseCount >= clusterCount) {
-            resolve();
-            process.removeListener("message", listener);
-          } else {
-            timeout = setTimeout(() => {
-              reject();
-              process.removeListener("message", listener);
-            }, 5000);
-          }
-        }
-      };
-      timeout = setTimeout(() => {
-        reject();
+  const processes = await getProcesses();
+  clusterCount = processes.length;
+  const listener = (packet) => {
+    if (packet.data?.type === "serverCounts") {
+      clearTimeout(timeout);
+      serverCount += packet.data.guilds;
+      shardCount += packet.data.shards;
+      responseCount += 1;
+      if (responseCount >= clusterCount) {
         process.removeListener("message", listener);
-      }, 5000);
-      process.on("message", listener);
-      process.send({
-        type: "process:msg",
-        data: {
-          type: "serverCounts"
-        }
-      });
-    });
+        return;
+      } else {
+        timeout = setTimeout(() => {
+          process.removeListener("message", listener);
+          logger.error("Timed out while waiting for stats");
+        }, 5000);
+      }
+    }
+  };
+  timeout = setTimeout(() => {
+    process.removeListener("message", listener);
+    logger.error("Timed out while waiting for stats");
+  }, 5000);
+  process.on("message", listener);
+  process.send({
+    type: "process:msg",
+    data: {
+      type: "serverCounts"
+    }
   });
 }
 
@@ -161,11 +165,21 @@ function calcShards(shards, procs) {
   const r = [];
   let i = 0;
   let size;
+  let remainder;
 
   if (length % procs === 0) {
     size = Math.floor(length / procs);
+    remainder = size % 16;
+    if (size > 16 && remainder) {
+      size -= remainder;
+    }
     while (i < length) {
-      r.push(shards.slice(i, (i += size)));
+      let added = 0;
+      if (remainder) {
+        added = 1;
+        remainder--;
+      }
+      r.push(shards.slice(i, (i += size + (size * added))));
     }
   } else {
     while (i < length) {
@@ -200,16 +214,30 @@ function calcShards(shards, procs) {
   const procAmount = Math.min(connectionData.shards, cpuAmount);
   logger.main(`Obtained data, connecting with ${connectionData.shards} shard(s) across ${procAmount} process(es)...`);
 
-  const lastShard = connectionData.shards - 1;
+  const runningProc = await getProcesses();
+  if (runningProc.length === procAmount) {
+    logger.main("All processes already running");
+    return;
+  }
+
   const shardArray = [];
-  for (let i = 0; i <= lastShard; i++) {
+  for (let i = 0; i < connectionData.shards; i++) {
     shardArray.push(i);
   }
   const shardArrays = calcShards(shardArray, procAmount);
 
-  for (let i = 0; i < shardArrays.length; i++) {
+  let i = 0;
+
+  if (runningProc.length < procAmount && runningProc.length !== 0) {
+    i = runningProc.length;
+    logger.main(`Some processes already running, attempting to start ${shardArrays.length - runningProc.length} missing processes with offset ${i}...`);
+  }
+
+  for (i; i < shardArrays.length; i++) {
     await awaitStart(i, shardArrays);
   }
+  
+  await updateStats();
 })();
 
 function awaitStart(i, shardArrays) {

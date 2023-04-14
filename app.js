@@ -126,6 +126,8 @@ esmBot ${esmBotVersion} (${process.env.GIT_REV})
   }
   if (process.env.API_TYPE === "ws") await reloadImageConnections();
 
+  const shardArray = process.env.SHARDS ? JSON.parse(process.env.SHARDS)[process.env.pm_id - 1] : null;
+
   // create the oceanic client
   const client = new Client({
     auth: `Bot ${process.env.TOKEN}`,
@@ -137,8 +139,8 @@ esmBot ${esmBotVersion} (${process.env.GIT_REV})
     },
     gateway: {
       concurrency: "auto",
-      maxShards: "auto",
-      shardIDs: process.env.SHARDS ? JSON.parse(process.env.SHARDS)[process.env.pm_id - 1] : null,
+      maxShards: shardArray?.length,
+      shardIDs: shardArray,
       presence: {
         status: "idle",
         activities: [{
@@ -149,7 +151,8 @@ esmBot ${esmBotVersion} (${process.env.GIT_REV})
       intents
     },
     collectionLimits: {
-      messages: 50
+      messages: 50,
+      channels: !types.classic ? 0 : Infinity
     }
   });
 

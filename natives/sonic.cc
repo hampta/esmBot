@@ -5,7 +5,8 @@
 using namespace std;
 using namespace vips;
 
-char *Sonic(string *type, ArgumentMap Arguments, size_t *DataSize) {
+ArgumentMap Sonic(string type, string *outType, ArgumentMap Arguments,
+            size_t *DataSize) {
   string text = GetArgument<string>(Arguments, "text");
   string basePath = GetArgument<string>(Arguments, "basePath");
 
@@ -28,9 +29,10 @@ char *Sonic(string *type, ArgumentMap Arguments, size_t *DataSize) {
                              VImage::option()->set("x", 391)->set("y", 84));
 
   void *buf;
-  out.write_to_buffer(".png", &buf, DataSize);
+  out.write_to_buffer(("." + *outType).c_str(), &buf, DataSize);
 
-  *type = "png";
+  ArgumentMap output;
+  output["buf"] = (char *)buf;
 
-  return (char *)buf;
+  return output;
 }

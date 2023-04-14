@@ -11,8 +11,9 @@
 using namespace std;
 using namespace Magick;
 
-char *Circle(string *type, char *BufferData, size_t BufferLength,
-             ArgumentMap Arguments, size_t *DataSize) {
+ArgumentMap Circle(string type, string *outType, char *BufferData,
+             size_t BufferLength, [[maybe_unused]] ArgumentMap Arguments,
+             size_t *DataSize) {
   Blob blob;
 
   list<Image> frames;
@@ -29,13 +30,13 @@ char *Circle(string *type, char *BufferData, size_t BufferLength,
 
   for (Image &image : coalesced) {
     image.rotationalBlur(10);
-    image.magick(*type);
+    image.magick(*outType);
     blurred.push_back(image);
   }
 
   optimizeTransparency(blurred.begin(), blurred.end());
 
-  if (*type == "gif") {
+  if (*outType == "gif") {
     for (Image &image : blurred) {
       image.quantizeDitherMethod(FloydSteinbergDitherMethod);
       image.quantize();
@@ -49,5 +50,9 @@ char *Circle(string *type, char *BufferData, size_t BufferLength,
   // workaround because the data is tied to the blob
   char *data = (char *)malloc(*DataSize);
   memcpy(data, blob.data(), *DataSize);
-  return data;
+  
+  ArgumentMap output;
+  output["buf"] = data;
+
+  return output;
 }

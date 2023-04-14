@@ -6,6 +6,10 @@ import { upload } from "../utils/tempimages.js";
 
 // run when a slash command is executed
 export default async (client, interaction) => {
+  // block if client is not ready yet
+  if (!client.ready) return;
+
+  // block non-command events
   if (interaction?.type !== 2) return;
 
   // check if command exists and if it's enabled
@@ -74,6 +78,7 @@ export default async (client, interaction) => {
       try {
         let err = error;
         if (error?.constructor?.name == "Promise") err = await error;
+        if (!interaction.acknowledged) await interaction.defer(); // Files can't be uploaded without deferring first
         await interaction[replyMethod]({
           content: "Uh oh! I ran into an error while running this command. Please report the content of the attached file at the following link or on the esmBot Support server: <https://github.com/esmBot/esmBot/issues>",
           files: [{

@@ -5,23 +5,22 @@
 using namespace std;
 using namespace vips;
 
-char *Mirror(string *type, char *BufferData, size_t BufferLength,
-             ArgumentMap Arguments, size_t *DataSize) {
+ArgumentMap Mirror(string type, string *outType, char *BufferData,
+                   size_t BufferLength, ArgumentMap Arguments,
+                   size_t *DataSize) {
   bool vertical = GetArgumentWithFallback<bool>(Arguments, "vertical", false);
   bool first = GetArgumentWithFallback<bool>(Arguments, "first", false);
 
-  VOption *options = VImage::option()->set("access", "sequential");
-
-  VImage in =
-      VImage::new_from_buffer(BufferData, BufferLength, "",
-                              *type == "gif" ? options->set("n", -1) : options)
-          .colourspace(VIPS_INTERPRETATION_sRGB);
+  VImage in = VImage::new_from_buffer(
+                  BufferData, BufferLength, "",
+                  type == "gif" ? VImage::option()->set("n", -1) : 0)
+                  .colourspace(VIPS_INTERPRETATION_sRGB);
   if (!in.has_alpha()) in = in.bandjoin(255);
 
   VImage out;
 
   if (vertical) {
-    if (*type == "gif") {
+    if (type == "gif") {
       // once again, libvips gif handling is both a blessing and a curse
       vector<VImage> img;
       int pageHeight = vips_image_get_page_height(in.get_image());
@@ -39,10 +38,18 @@ char *Mirror(string *type, char *BufferData, size_t BufferLength,
       out = VImage::arrayjoin(img, VImage::option()->set("across", 1));
       out.set(VIPS_META_PAGE_HEIGHT, pageHeight - (isOdd ? 1 : 0));
     } else {
-      VImage cropped = in.extract_area(0, 0, in.width(), in.height() / 2);
-      VImage flipped = cropped.flip(VIPS_DIRECTION_VERTICAL);
-      out = VImage::arrayjoin({cropped, flipped},
-                              VImage::option()->set("across", 1));
+      if (first) {
+        VImage cropped = in.extract_area(0, 0, in.width(), in.height() / 2);
+        VImage flipped = cropped.flip(VIPS_DIRECTION_VERTICAL);
+        out = VImage::arrayjoin({cropped, flipped},
+                                VImage::option()->set("across", 1));
+      } else {
+        int size = in.height() / 2;
+        VImage cropped = in.extract_area(0, size, in.width(), size);
+        VImage flipped = cropped.flip(VIPS_DIRECTION_VERTICAL);
+        out = VImage::arrayjoin({flipped, cropped},
+                                VImage::option()->set("across", 1));
+      }
     }
   } else {
     if (first) {
@@ -58,7 +65,10 @@ char *Mirror(string *type, char *BufferData, size_t BufferLength,
   }
 
   void *buf;
-  out.write_to_buffer(("." + *type).c_str(), &buf, DataSize);
+  out.write_to_buffer(("." + *outType).c_str(), &buf, DataSize);
 
-  return (char *)buf;
+  ArgumentMap output;
+  output["buf"] = (char *)buf;
+
+  return output;
 }

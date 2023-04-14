@@ -9,8 +9,8 @@
 using namespace std;
 using namespace Magick;
 
-char *Wall(string *type, char *BufferData, size_t BufferLength,
-           ArgumentMap Arguments, size_t *DataSize) {
+ArgumentMap Wall(string type, string *outType, char *BufferData, size_t BufferLength,
+           [[maybe_unused]] ArgumentMap Arguments, size_t *DataSize) {
   Blob blob;
 
   list<Image> frames;
@@ -35,13 +35,13 @@ char *Wall(string *type, char *BufferData, size_t BufferLength,
                             128, 0, 140, 60, 128, 128, 140, 140};
     image.distort(Magick::PerspectiveDistortion, 16, arguments);
     image.scale(Geometry("800x800>"));
-    image.magick(*type);
+    image.magick(*outType);
     mid.push_back(image);
   }
 
   optimizeTransparency(mid.begin(), mid.end());
 
-  if (*type == "gif") {
+  if (*outType == "gif") {
     for (Image &image : mid) {
       image.quantizeDitherMethod(FloydSteinbergDitherMethod);
       image.quantize();
@@ -54,5 +54,9 @@ char *Wall(string *type, char *BufferData, size_t BufferLength,
 
   char *data = (char *)malloc(*DataSize);
   memcpy(data, blob.data(), *DataSize);
-  return data;
+
+  ArgumentMap output;
+  output["buf"] = data;
+
+  return output;
 }

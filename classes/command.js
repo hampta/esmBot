@@ -1,3 +1,5 @@
+import { Constants } from "oceanic.js";
+
 class Command {
   success = true;
   constructor(client, options) {
@@ -11,6 +13,7 @@ class Command {
       this.guild = options.message.guild;
       this.author = options.message.author;
       this.member = options.message.member;
+      this.permissions = this.channel ? this.channel.permissionsOf(client.user.id.toString()) : Constants.AllTextPermissions;
       this.content = options.content;
       this.options = options.specialArgs;
       this.reference = {
@@ -27,9 +30,10 @@ class Command {
     } else if (options.type === "application") {
       this.interaction = options.interaction;
       this.args = [];
-      this.channel = options.interaction.channel;
+      this.channel = options.interaction.channel ?? { id: options.interaction.channelID };
       this.guild = options.interaction.guild;
       this.author = this.member = options.interaction.guildID ? options.interaction.member : options.interaction.user;
+      this.permissions = options.interaction.appPermissions;
       if (options.interaction.data.options) {
         this.options = options.interaction.data.options.raw.reduce((obj, item) => {
           obj[item.name] = item.value;
@@ -46,12 +50,12 @@ class Command {
     return "It works!";
   }
 
-  async acknowledge() {
+  async acknowledge(flags) {
     if (this.type === "classic") {
       const channel = this.channel ?? await this.client.rest.channels.get(this.message.channelID);
       await channel.sendTyping();
     } else if (!this.interaction.acknowledged) {
-      await this.interaction.defer();
+      await this.interaction.defer(flags);
     }
   }
 

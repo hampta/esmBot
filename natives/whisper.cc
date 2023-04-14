@@ -5,8 +5,9 @@
 using namespace std;
 using namespace vips;
 
-char *Whisper(string *type, char *BufferData, size_t BufferLength,
-              ArgumentMap Arguments, size_t *DataSize) {
+ArgumentMap Whisper(string type, string *outType, char *BufferData,
+                    size_t BufferLength, ArgumentMap Arguments,
+                    size_t *DataSize) {
   string caption = GetArgument<string>(Arguments, "caption");
   string basePath = GetArgument<string>(Arguments, "basePath");
 
@@ -14,7 +15,7 @@ char *Whisper(string *type, char *BufferData, size_t BufferLength,
 
   VImage in =
       VImage::new_from_buffer(BufferData, BufferLength, "",
-                              *type == "gif" ? options->set("n", -1) : options)
+                              type == "gif" ? options->set("n", -1) : options)
           .colourspace(VIPS_INTERPRETATION_sRGB);
   if (!in.has_alpha()) in = in.bandjoin(255);
 
@@ -22,20 +23,13 @@ char *Whisper(string *type, char *BufferData, size_t BufferLength,
   int pageHeight = vips_image_get_page_height(in.get_image());
   int nPages = vips_image_get_n_pages(in.get_image());
   int size = width / 6;
-  int dividedWidth = width / 175;
-  int rad = 1;
+  double rad = (double)size / 24;
 
   string font_string = "Upright, Twemoji Color Font " + to_string(size);
 
-  VImage mask;
-  if (dividedWidth >= 1) {
-    mask = VImage::black(dividedWidth * 2 + 1, dividedWidth * 2 + 1) + 128;
-    mask.draw_circle({255}, dividedWidth, dividedWidth, dividedWidth,
-                     VImage::option()->set("fill", true));
-  } else {
-    mask = VImage::black(rad * 2 + 1, rad * 2 + 1) + 128;
-    mask.draw_circle({255}, rad, rad, rad, VImage::option()->set("fill", true));
-  }
+  VImage mask =
+      VImage::gaussmat(rad / 2, 0.1, VImage::option()->set("separable", true)) *
+      8;
 
   VImage textIn = VImage::text(
       ".", VImage::option()->set(
@@ -49,37 +43,31 @@ char *Whisper(string *type, char *BufferData, size_t BufferLength,
           ->set("fontfile", (basePath + "assets/fonts/twemoji.otf").c_str())
           ->set("width", width));
 
-  textIn = textIn.embed(rad + 10, rad + 10, (textIn.width() + 2 * rad) + 20,
-                        (textIn.height() + 2 * rad) + 20);
+  textIn = textIn.embed(rad, rad, textIn.width() + 2 * rad,
+                        textIn.height() + 2 * rad);
 
-  VImage outline = textIn.morph(mask, VIPS_OPERATION_MORPHOLOGY_DILATE)
-                       .gaussblur(0.5, VImage::option()->set("min_ampl", 0.1));
-  outline = (outline == (vector<double>){0, 0, 0, 0});
-  VImage invert = outline.extract_band(3).invert();
-  outline =
-      outline.extract_band(0, VImage::option()->set("n", outline.bands() - 1))
-          .bandjoin(invert);
-  VImage textImg = outline.composite2(textIn, VIPS_BLEND_MODE_OVER);
+  VImage newText = textIn.convsep(mask);
+  VImage outline = newText.cast(VIPS_FORMAT_UCHAR) * zeroVecOneAlpha;
+  VImage composited = outline.composite2(textIn, VIPS_BLEND_MODE_OVER);
+  VImage textImg = composited.embed(
+      (width / 2) - (composited.width() / 2),
+      (pageHeight / 2) - (composited.height() / 2), width, pageHeight);
 
-  vector<VImage> img;
-  for (int i = 0; i < nPages; i++) {
-    VImage img_frame =
-        *type == "gif" ? in.crop(0, i * pageHeight, width, pageHeight) : in;
-    img_frame = img_frame.composite2(
-        textImg, VIPS_BLEND_MODE_OVER,
-        VImage::option()
-            ->set("x", (width / 2) - (textImg.width() / 2))
-            ->set("y", (pageHeight / 2) - (textImg.height() / 2)));
-    img.push_back(img_frame);
-  }
-  VImage final = VImage::arrayjoin(img, VImage::option()->set("across", 1));
-  final.set(VIPS_META_PAGE_HEIGHT, pageHeight);
+  VImage replicated = textImg
+                          .copy(VImage::option()->set("interpretation",
+                                                      VIPS_INTERPRETATION_sRGB))
+                          .replicate(1, nPages);
+  VImage final = in.composite(replicated, VIPS_BLEND_MODE_OVER);
 
   void *buf;
   final.write_to_buffer(
-      ("." + *type).c_str(), &buf, DataSize,
-      *type == "gif" ? VImage::option()->set("dither", 0)->set("reoptimise", 1)
-                     : 0);
+      ("." + *outType).c_str(), &buf, DataSize,
+      *outType == "gif"
+          ? VImage::option()->set("dither", 0)->set("reoptimise", 1)
+          : 0);
 
-  return (char *)buf;
+  ArgumentMap output;
+  output["buf"] = (char *)buf;
+
+  return output;
 }
