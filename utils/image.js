@@ -38,7 +38,7 @@ export async function getType(image, extraReturnTypes) {
     });
     clearTimeout(timeout);
     const size = imageRequest.headers["content-range"] ? imageRequest.headers["content-range"].split("/")[1] : imageRequest.headers["content-length"];
-    if (parseInt(size) > 26214400 && extraReturnTypes) { // 25 MB
+    if (parseInt(size) > 41943040 && extraReturnTypes) { // 40 MB
       type = "large";
       return type;
     }
@@ -64,7 +64,7 @@ export async function getType(image, extraReturnTypes) {
     }
   } catch (error) {
     if (error.name === "AbortError") {
-      throw Error("Timed out");
+      throw Error(`Timed out when requesting ${image}`);
     } else {
       throw error;
     }
@@ -108,7 +108,7 @@ export async function reloadImageConnections() {
 
 function chooseServer(ideal) {
   if (ideal.length === 0) throw "No available servers";
-  const sorted = ideal.sort((a, b) => {
+  const sorted = ideal.filter((v) => !!v).sort((a, b) => {
     return a.load - b.load;
   });
   return sorted[0];
@@ -120,6 +120,10 @@ async function getIdeal(object) {
     if (connection.conn.readyState !== 0 && connection.conn.readyState !== 1) {
       continue;
     }
+    if (!connection.funcs.includes(object.cmd)) {
+      idealServers.push(null);
+      continue;
+    }
     if (object.params.type && !connection.formats[object.cmd]?.includes(object.params.type)) continue;
     idealServers.push({
       addr: address,
@@ -127,6 +131,7 @@ async function getIdeal(object) {
     });
   }
   const server = chooseServer(idealServers);
+  if (!server) return;
   return connections.get(server.addr);
 }
 
@@ -146,6 +151,9 @@ export async function runImageJob(params) {
   if (process.env.API_TYPE === "ws") {
     for (let i = 0; i < 3; i++) {
       const currentServer = await getIdeal(params);
+      if (!currentServer) return {
+        type: "nocmd"
+      };
       try {
         await currentServer.queue(BigInt(params.id), params);
         await currentServer.wait(BigInt(params.id));

@@ -42,6 +42,7 @@ typedef map<string, ArgumentVariant> ArgumentMap;
 #include "sonic.h"
 #include "speed.h"
 #include "spin.h"
+#include "spotify.h"
 #include "squish.h"
 #include "swirl.h"
 #include "tile.h"
@@ -51,7 +52,6 @@ typedef map<string, ArgumentVariant> ArgumentMap;
 #include "wall.h"
 #include "watermark.h"
 #include "whisper.h"
-#include "zamn.h"
 
 template <typename T>
 T GetArgument(ArgumentMap map, string key) {
@@ -96,7 +96,9 @@ const std::map<std::string,
                    {"bounce", &Bounce},
                    {"caption", &Caption},
                    {"captionTwo", &CaptionTwo},
+#ifdef MAGICK_ENABLED
                    {"circle", &Circle},
+#endif
                    {"colors", &Colors},
                    {"crop", &Crop},
                    {"deepfry", &Deepfry},
@@ -108,7 +110,9 @@ const std::map<std::string,
                    {"globe", Globe},
                    {"invert", Invert},
                    {"jpeg", Jpeg},
+#ifdef MAGICK_ENABLED
                    {"magik", Magik},
+#endif
                    {"meme", Meme},
                    {"mirror", Mirror},
                    {"motivate", Motivate},
@@ -118,17 +122,21 @@ const std::map<std::string,
                    {"scott", Scott},
                    {"snapchat", Snapchat},
                    {"speed", &Speed},
+#ifdef MAGICK_ENABLED
                    {"spin", Spin},
+#endif
+                   {"spotify", &Spotify},
                    {"squish", Squish},
                    {"swirl", Swirl},
                    {"tile", Tile},
                    {"togif", ToGif},
                    {"uncanny", Uncanny},
                    {"uncaption", &Uncaption},
+#if MAGICK_ENABLED
                    {"wall", Wall},
+#endif
                    {"watermark", &Watermark},
-                   {"whisper", Whisper},
-                   {"zamn", Zamn}};
+                   {"whisper", Whisper}};
 
 const std::map<std::string,
                ArgumentMap (*)(string type, string* outType,

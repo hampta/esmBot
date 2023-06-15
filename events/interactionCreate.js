@@ -35,7 +35,7 @@ export default async (client, interaction) => {
     // eslint-disable-next-line no-unused-vars
     const commandClass = new cmd(client, { type: "application", interaction });
     const result = await commandClass.run();
-    const replyMethod = interaction.acknowledged ? "editOriginal" : "createMessage";
+    const replyMethod = interaction.acknowledged ? (commandClass.edit ? "editOriginal" : "createFollowup") : "createMessage";
     if (typeof result === "string") {
       await interaction[replyMethod]({
         content: result,
@@ -49,7 +49,7 @@ export default async (client, interaction) => {
             await upload(client, result, interaction, true);
           } else {
             await interaction[replyMethod]({
-              content: "The resulting image was more than 8MB in size, so I can't upload it.",
+              content: "The resulting image was more than 25MB in size, so I can't upload it.",
               flags: 64
             });
           }
@@ -63,12 +63,13 @@ export default async (client, interaction) => {
       }
     } else {
       logger.warn(`Unknown return type for command ${command}: ${result} (${typeof result})`);
+      if (!result) return;
       await interaction[replyMethod](Object.assign({
         flags: commandClass.success ? 0 : 64
       }, result));
     }
   } catch (error) {
-    const replyMethod = interaction.acknowledged ? "editOriginal" : "createMessage";
+    const replyMethod = interaction.acknowledged ? "createFollowup" : "createMessage";
     if (error.toString().includes("Request entity too large")) {
       await interaction[replyMethod]({ content: "The resulting file was too large to upload. Try again with a smaller image if possible.", flags: 64 });
     } else if (error.toString().includes("Job ended prematurely")) {

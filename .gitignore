@@ -119,4 +119,8 @@ libvips/
 
 # Databases
 data/
-*.sqlite
+*sqlite*
+
+# Other lockfiles
+package-lock.json
+yarn.lock

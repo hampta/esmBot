@@ -49,7 +49,7 @@ class ImageCommand extends Command {
           return `${this.constructor.noImage} (Tip: try right-clicking/holding on a message and press Apps -> Select Image, then try again.)`;
         } else if (image.type === "large") {
           runningCommands.delete(this.author.id);
-          return "That image is too large (>= 25MB)! Try using a smaller image.";
+          return "That image is too large (>= 40MB)! Try using a smaller image.";
         } else if (image.type === "tenorlimit") {
           runningCommands.delete(this.author.id);
           return "I've been rate-limited by Tenor. Please try uploading your GIF elsewhere.";
@@ -89,9 +89,8 @@ class ImageCommand extends Command {
 
     try {
       const { buffer, type } = await runImageJob(imageParams);
-      if (type === "nogif" && this.constructor.requiresGIF) {
-        return "That isn't a GIF!";
-      }
+      if (type === "nocmd") return "That command isn't supported on this instance of esmBot.";
+      if (type === "nogif" && this.constructor.requiresGIF) return "That isn't a GIF!";
       this.success = true;
       return {
         contents: buffer,
