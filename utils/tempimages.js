@@ -1,4 +1,4 @@
-import * as logger from "../utils/logger.js";
+import logger from "../utils/logger.js";
 import { readdir, lstat, rm, writeFile, stat } from "fs/promises";
 
 let dirSizeCache;
@@ -42,7 +42,8 @@ export async function upload(client, result, context, interaction = false) {
   }
 }
 
-async function removeOldImages(size) {
+async function removeOldImages(s) {
+  let size = s;
   if (size > process.env.THRESHOLD) {
     const files = (await readdir(process.env.TEMPDIR)).map((file) => {
       return lstat(`${process.env.TEMPDIR}/${file}`).then((stats) => {
@@ -81,7 +82,7 @@ export async function parseThreshold() {
     G: 1073741824,
     T: 1099511627776
   };
-  if (matched && matched[1] && matched[2]) {
+  if (matched?.[1] && matched[2]) {
     process.env.THRESHOLD = matched[1] * sizes[matched[2]];
   } else {
     logger.error("Invalid THRESHOLD config.");

@@ -1,6 +1,5 @@
 // wrapper for the database drivers in ./database/
-import { config } from "dotenv";
-config();
+import "dotenv/config";
 
 let db = null;
 
@@ -9,7 +8,7 @@ if (process.env.DB) {
   try {
     db = await import(`./database/${dbtype}.js`);
   } catch (error) {
-    if (error.code == "ERR_MODULE_NOT_FOUND") {
+    if (error.code === "ERR_MODULE_NOT_FOUND") {
       console.error(`DB config option has unknown database type '${dbtype}'`);
       process.exit(1);
     }

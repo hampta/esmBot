@@ -1,17 +1,17 @@
-import { request } from "undici";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import { Worker } from "worker_threads";
 import { createRequire } from "module";
 import { fileTypeFromBuffer, fileTypeFromFile } from "file-type";
-import * as logger from "./logger.js";
+import logger from "./logger.js";
 import ImageConnection from "./imageConnection.js";
 
-// only requiring this to work around an issue regarding worker threads
+// init image libraries
 const nodeRequire = createRequire(import.meta.url);
 if (!process.env.API_TYPE || process.env.API_TYPE === "none") {
-  nodeRequire(`../build/${process.env.DEBUG && process.env.DEBUG === "true" ? "Debug" : "Release"}/image.node`);
+  const img = nodeRequire(`../build/${process.env.DEBUG && process.env.DEBUG === "true" ? "Debug" : "Release"}/image.node`);
+  img.imageInit();
 }
 
 const formats = ["image/jpeg", "image/png", "image/webp", "image/gif", "video/mp4", "video/webm", "video/quicktime"];
@@ -32,41 +32,35 @@ export async function getType(image, extraReturnTypes) {
     controller.abort();
   }, 3000);
   try {
-    const imageRequest = await request(image, {
+    const imageRequest = await fetch(image, {
       signal: controller.signal,
       method: "HEAD"
     });
     clearTimeout(timeout);
-    const size = imageRequest.headers["content-range"] ? imageRequest.headers["content-range"].split("/")[1] : imageRequest.headers["content-length"];
+    const size = imageRequest.headers.has("content-range") ? imageRequest.headers.get("content-range").split("/")[1] : imageRequest.headers.get("content-length");
     if (parseInt(size) > 41943040 && extraReturnTypes) { // 40 MB
       type = "large";
       return type;
     }
-    const typeHeader = imageRequest.headers["content-type"];
+    const typeHeader = imageRequest.headers.get("content-type");
     if (typeHeader) {
       type = typeHeader;
     } else {
       const timeout = setTimeout(() => {
         controller.abort();
       }, 3000);
-      const bufRequest = await request(image, {
+      const bufRequest = await fetch(image, {
         signal: controller.signal,
         headers: {
           range: "bytes=0-1023"
         }
       });
       clearTimeout(timeout);
-      const imageBuffer = await bufRequest.body.arrayBuffer();
+      const imageBuffer = await bufRequest.arrayBuffer();
       const imageType = await fileTypeFromBuffer(imageBuffer);
       if (imageType && formats.includes(imageType.mime)) {
         type = imageType.mime;
       }
-    }
-  } catch (error) {
-    if (error.name === "AbortError") {
-      throw Error(`Timed out when requesting ${image}`);
-    } else {
-      throw error;
     }
   } finally {
     clearTimeout(timeout);

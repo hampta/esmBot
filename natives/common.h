@@ -1,5 +1,8 @@
 #pragma once
 
+#include <fontconfig/fontconfig.h>
+
+#include <iostream>
 #include <map>
 #include <string>
 #include <unordered_map>
@@ -21,7 +24,7 @@ typedef map<string, ArgumentVariant> ArgumentMap;
 #include "colors.h"
 #include "crop.h"
 #include "deepfry.h"
-#include "explode.h"
+#include "distort.h"
 #include "flag.h"
 #include "flip.h"
 #include "freeze.h"
@@ -71,6 +74,26 @@ T GetArgumentWithFallback(ArgumentMap map, string key, T fallback) {
   }
 }
 
+inline void loadFonts(string basePath) {
+  // manually loading fonts to workaround some font issues with libvips
+  if (!FcConfigAppFontAddDir(
+          NULL, (const FcChar8*)(basePath + "assets/fonts/").c_str())) {
+    std::cerr
+        << "Unable to load local font files from directory, falling back to "
+           "global fonts (which may be inaccurate!)"
+        << std::endl;
+  }
+  FcConfig* cfg = FcConfigGetCurrent();
+  if (!FcConfigParseAndLoad(
+          cfg,
+          (const FcChar8*)(basePath + "assets/fonts/fontconfig.xml").c_str(),
+          true)) {
+    std::cerr
+        << "Unable to load local fontconfig, some fonts may be inaccurate!"
+        << std::endl;
+  }
+}
+
 #define MAP_HAS(ARRAY, KEY) (ARRAY.count(KEY) > 0)
 #define MAP_GET(ARRAY, KEY, TYPE)                 \
   (MAP_HAS(ARRAY, KEY) ? get<TYPE>(ARRAY.at(KEY)) \
@@ -102,43 +125,43 @@ const std::map<std::string,
                    {"colors", &Colors},
                    {"crop", &Crop},
                    {"deepfry", &Deepfry},
-                   {"explode", &Explode},
+                   {"distort", &Distort},
                    {"flag", &Flag},
                    {"flip", &Flip},
                    {"freeze", &Freeze},
-                   {"gamexplain", Gamexplain},
-                   {"globe", Globe},
-                   {"invert", Invert},
-                   {"jpeg", Jpeg},
+                   {"gamexplain", &Gamexplain},
+                   {"globe", &Globe},
+                   {"invert", &Invert},
+                   {"jpeg", &Jpeg},
 #ifdef MAGICK_ENABLED
-                   {"magik", Magik},
+                   {"magik", &Magik},
 #endif
-                   {"meme", Meme},
-                   {"mirror", Mirror},
-                   {"motivate", Motivate},
-                   {"reddit", Reddit},
-                   {"resize", Resize},
-                   {"reverse", Reverse},
-                   {"scott", Scott},
-                   {"snapchat", Snapchat},
+                   {"meme", &Meme},
+                   {"mirror", &Mirror},
+                   {"motivate", &Motivate},
+                   {"reddit", &Reddit},
+                   {"resize", &Resize},
+                   {"reverse", &Reverse},
+                   {"scott", &Scott},
+                   {"snapchat", &Snapchat},
                    {"speed", &Speed},
 #ifdef MAGICK_ENABLED
-                   {"spin", Spin},
+                   {"spin", &Spin},
 #endif
                    {"spotify", &Spotify},
-                   {"squish", Squish},
-                   {"swirl", Swirl},
-                   {"tile", Tile},
-                   {"togif", ToGif},
-                   {"uncanny", Uncanny},
+                   {"squish", &Squish},
+                   {"swirl", &Swirl},
+                   {"tile", &Tile},
+                   {"togif", &ToGif},
+                   {"uncanny", &Uncanny},
                    {"uncaption", &Uncaption},
 #if MAGICK_ENABLED
-                   {"wall", Wall},
+                   {"wall", &Wall},
 #endif
                    {"watermark", &Watermark},
-                   {"whisper", Whisper}};
+                   {"whisper", &Whisper}};
 
 const std::map<std::string,
                ArgumentMap (*)(string type, string* outType,
                                ArgumentMap Arguments, size_t* DataSize)>
-    NoInputFunctionMap = {{"homebrew", Homebrew}, {"sonic", Sonic}};
+    NoInputFunctionMap = {{"homebrew", &Homebrew}, {"sonic", &Sonic}};

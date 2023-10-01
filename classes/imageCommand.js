@@ -37,7 +37,7 @@ class ImageCommand extends Command {
       try {
         const selection = selectedImages.get(this.author.id);
         const image = selection ?? await imageDetect(this.client, this.message, this.interaction, this.options, true).catch(e => {
-          if (e === "Timed out") {
+          if (e.name === "AbortError") {
             return { type: "timeout" };
           } else {
             throw e;
@@ -55,7 +55,7 @@ class ImageCommand extends Command {
           return "I've been rate-limited by Tenor. Please try uploading your GIF elsewhere.";
         } else if (image.type === "timeout") {
           runningCommands.delete(this.author.id);
-          return "The request to get that image timed out. Please try again or use another image.";
+          return "The request to get that image timed out. Please try again, upload your image elsewhere, or use another image.";
         }
         imageParams.path = image.path;
         imageParams.params.type = image.type;

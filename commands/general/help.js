@@ -53,8 +53,8 @@ class HelpCommand extends Command {
         }
         if (flagInfo.length !== 0) {
           embed.embeds[0].fields.push({
-            "name": "Flags",
-            "value": flagInfo.join("\n")
+            name: "Flags",
+            value: flagInfo.join("\n")
           });
         }
       }
@@ -67,7 +67,7 @@ class HelpCommand extends Command {
       const pages = [];
       if (help.categories === help.categoryTemplate && !help.generated) help.generateList();
       for (const category of Object.keys(help.categories)) {
-        const splitPages = help.categories[category].map((item, index) => {
+        const splitPages = help.categories[category].map((_item, index) => {
           return index % 15 === 0 ? help.categories[category].slice(index, index + 15) : null;
         }).filter((item) => {
           return item;

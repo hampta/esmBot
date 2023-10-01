@@ -2,12 +2,8 @@ import pm2 from "pm2";
 import winston from "winston";
 
 // load config from .env file
-import { resolve, dirname } from "path";
-import { fileURLToPath } from "url";
-import { readFileSync } from "fs";
 import { createServer } from "http";
-import { config } from "dotenv";
-config({ path: resolve(dirname(fileURLToPath(import.meta.url)), "../../.env") });
+import "dotenv/config";
 
 // oceanic client used for getting shard counts
 import { Client } from "oceanic.js";
@@ -48,7 +44,7 @@ winston.addColors({
 });
 
 let serverCount = 0;
-let shardCount = 0;
+let shardData = [];
 let clusterCount = 0;
 let responseCount = 0;
 
@@ -77,7 +73,7 @@ function getProcesses() {
 
 async function updateStats() {
   serverCount = 0;
-  shardCount = 0;
+  shardData = [];
   clusterCount = 0;
   responseCount = 0;
   const processes = await getProcesses();
@@ -86,7 +82,7 @@ async function updateStats() {
     if (packet.data?.type === "serverCounts") {
       clearTimeout(timeout);
       serverCount += packet.data.guilds;
-      shardCount += packet.data.shards;
+      shardData = [...shardData, ...packet.data.shards].sort((a, b) => a.id - b.id);
       responseCount += 1;
       if (responseCount >= clusterCount) {
         process.removeListener("message", listener);
@@ -113,45 +109,72 @@ async function updateStats() {
 }
 
 if (process.env.METRICS && process.env.METRICS !== "") {
-  const servers = [];
-  if (process.env.API_TYPE === "ws") {
-    const imageHosts = JSON.parse(readFileSync(new URL("../../config/servers.json", import.meta.url), { encoding: "utf8" })).image;
-    for (let { server } of imageHosts) {
-      if (!server.includes(":")) {
-        server += ":3762";
-      }
-      servers.push(server);
-    }
-  }
   const httpServer = createServer(async (req, res) => {
     if (req.method !== "GET") {
       res.statusCode = 405;
       return res.end("GET only");
     }
-    res.write(`# HELP esmbot_command_count Number of times a command has been run
+
+    const reqUrl = new URL(req.url, `http://${req.headers.host}`);
+    if (reqUrl.pathname === "/") {
+      res.write(`# HELP esmbot_command_count Number of times a command has been run
 # TYPE esmbot_command_count counter
 # HELP esmbot_server_count Number of servers/guilds the bot is in
 # TYPE esmbot_server_count gauge
 # HELP esmbot_shard_count Number of shards the bot has
 # TYPE esmbot_shard_count gauge
+# HELP esmbot_shard_ping Latency of each of the bot's shards
+# TYPE esmbot_shard_ping gauge
 `);
-    if (database) {
-      const counts = await database.getCounts();
-      for (const [i, w] of Object.entries(counts)) {
-        res.write(`esmbot_command_count{command="${i}"} ${w}\n`);
+      if (database) {
+        const counts = await database.getCounts();
+        for (const [i, w] of Object.entries(counts)) {
+          res.write(`esmbot_command_count{command="${i}"} ${w}\n`);
+        }
       }
-    }
 
-    res.write(`esmbot_server_count ${serverCount}\n`);
-    res.write(`esmbot_shard_count ${shardCount}\n`);
-    res.end();
+      res.write(`esmbot_server_count ${serverCount}\n`);
+      res.write(`esmbot_shard_count ${shardData.length}\n`);
+
+      for (const shard of shardData) {
+        res.write(`esmbot_shard_ping{shard="${shard.id}"} ${shard.latency}`);
+      }
+
+      res.end();
+    } else if (reqUrl.pathname === "/shard") {
+      if (!reqUrl.searchParams.has("id")) {
+        res.statusCode = 400;
+        return res.end("400 Bad Request");
+      }
+      const id = Number(reqUrl.searchParams.get("id"));
+      if (!shardData[id]) {
+        res.statusCode = 400;
+        return res.end("400 Bad Request");
+      }
+      return res.end(JSON.stringify(shardData[id]));
+    } else if (reqUrl.pathname === "/proc") {
+      if (!reqUrl.searchParams.has("id")) {
+        res.statusCode = 400;
+        return res.end("400 Bad Request");
+      }
+      const id = Number(reqUrl.searchParams.get("id"));
+      const procData = shardData.filter((v) => v.procId === id);
+      if (procData.length === 0) {
+        res.statusCode = 400;
+        return res.end("400 Bad Request");
+      }
+      return res.end(JSON.stringify(procData));
+    } else {
+      res.statusCode = 404;
+      return res.end("404 Not Found");
+    }
   });
   httpServer.listen(process.env.METRICS, () => {
     logger.log("info", `Serving metrics at ${process.env.METRICS}`);
   });
 }
 
-setInterval(updateStats, 300000);
+setInterval(updateStats, 60000);
 
 setTimeout(updateStats, 10000);
 
@@ -166,9 +189,10 @@ function calcShards(shards, procs) {
   let i = 0;
   let size;
   let remainder;
+  let processes = procs;
 
-  if (length % procs === 0) {
-    size = Math.floor(length / procs);
+  if (length % processes === 0) {
+    size = Math.floor(length / processes);
     remainder = size % 16;
     if (size > 16 && remainder) {
       size -= remainder;
@@ -179,12 +203,15 @@ function calcShards(shards, procs) {
         added = 1;
         remainder--;
       }
-      r.push(shards.slice(i, (i += size + (size * added))));
+      const end = i + size + (size * added);
+      r.push(shards.slice(i, end));
+      i = end;
     }
   } else {
     while (i < length) {
-      size = Math.ceil((length - i) / procs--);
-      r.push(shards.slice(i, (i += size)));
+      size = Math.ceil((length - i) / processes--);
+      r.push(shards.slice(i, i + size));
+      i += size;
     }
   }
 
@@ -253,7 +280,7 @@ function awaitStart(i, shardArrays) {
       exec_mode: "cluster",
       instances: 1,
       env: {
-        "SHARDS": JSON.stringify(shardArrays)
+        SHARDS: JSON.stringify(shardArrays)
       }
     }, (err) => {
       if (err) {

@@ -5,18 +5,17 @@
 using namespace std;
 using namespace vips;
 
-ArgumentMap Explode(string type, string *outType, char *BufferData,
-              size_t BufferLength, ArgumentMap Arguments, size_t *DataSize) {
-  bool implode = GetArgumentWithFallback<bool>(Arguments, "implode", false);
+ArgumentMap Distort(string type, string *outType, char *BufferData,
+                    size_t BufferLength, ArgumentMap Arguments,
+                    size_t *DataSize) {
+  string mapName = GetArgument<string>(Arguments, "mapName");
   string basePath = GetArgument<string>(Arguments, "basePath");
-
-  VOption *options = VImage::option();
 
   VImage in =
       VImage::new_from_buffer(
           BufferData, BufferLength, "",
-          type == "gif" ? options->set("n", -1)->set("access", "sequential")
-                        : options)
+          type == "gif" ? VImage::option()->set("n", -1)->set("access", "sequential")
+                        : 0)
           .colourspace(VIPS_INTERPRETATION_sRGB);
   if (!in.has_alpha()) in = in.bandjoin(255);
 
@@ -24,8 +23,7 @@ ArgumentMap Explode(string type, string *outType, char *BufferData,
   int pageHeight = vips_image_get_page_height(in.get_image());
   int nPages = vips_image_get_n_pages(in.get_image());
 
-  string distortPath = basePath + "assets/images/" +
-                       (implode ? "linearimplode.png" : "linearexplode.png");
+  string distortPath = basePath + "assets/images/" + mapName;
   VImage distort =
       (VImage::new_from_file(distortPath.c_str())
            .resize(width / 500.0, VImage::option()

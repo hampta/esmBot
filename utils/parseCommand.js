@@ -1,4 +1,5 @@
-export default (input) => {
+export default (cmd) => {
+  let input = cmd;
   if (typeof input === "string") input = input.split(/\s+/g);
   const args = { _: [] };
   let curr = null;
@@ -50,7 +51,7 @@ export default (input) => {
     }
   }
 
-  if (curr && args[curr] == "") {
+  if (curr && args[curr] === "") {
     args[curr] = true;
   }
 

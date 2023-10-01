@@ -20,7 +20,7 @@ Choose the distro you're using below for insallation instructions.
 === "Debian/Ubuntu"
     These instructions apply to Debian version 12 (bookworm) or Ubuntu version 22.04 (jammy) or later.
     ```sh
-    sudo apt-get install git curl build-essential cmake ffmpeg sqlite3 ttf-mscorefonts-installer libmagick++-dev libvips-dev libcgif-dev libgirepository1.0-dev fonts-noto-color-emoji libimagequant-dev meson
+    sudo apt-get install git curl build-essential cmake ffmpeg sqlite3 ttf-mscorefonts-installer libmagick++-dev libvips-dev libcgif-dev libgirepository1.0-dev libimagequant-dev meson
     ```
     On older Debian/Ubuntu versions, you may need to install some of these packages (notably libcgif-dev and meson) through alternative methods.
 === "Fedora/RHEL"
@@ -28,17 +28,22 @@ Choose the distro you're using below for insallation instructions.
 
     Some of these packages require that you add the RPM Fusion and/or EPEL repositories. You can find instructions on how to add them [here](https://rpmfusion.org/Configuration).
     ```sh
-    sudo dnf install git curl cmake ffmpeg sqlite gcc-c++ libcgif-devel ImageMagick-c++-devel vips-devel libimagequant-devel gobject-introspection-devel google-noto-emoji-color-fonts meson
+    sudo dnf install git curl cmake ffmpeg sqlite gcc-c++ libcgif-devel ImageMagick-c++-devel vips-devel libimagequant-devel gobject-introspection-devel meson cabextract 
     ```
     On RHEL-based distros like AlmaLinux and Rocky Linux, you may need to add [Remi's RPM Repository](https://rpms.remirepo.net) for the vips package.
+    
+    Some fonts used in the bot (e.g. Impact) require installing the MS Core Fonts package, which is unavailable through most RHEL repositories. You can install it using the following command (you're on your own regarding dependencies, each RHEL derivative handles them differently):
+    ```sh
+    sudo rpm -i https://downloads.sourceforge.net/project/mscorefonts2/rpms/msttcore-fonts-installer-2.6-1.noarch.rpm
+    ```
 === "Alpine"
     These instructions apply to the current Edge versions.
     ```sh
-    doas apk add git curl msttcorefonts-installer python3 sqlite3 alpine-sdk cmake ffmpeg imagemagick-dev vips-dev font-noto-emoji gobject-introspection-dev cgif-dev libimagequant-dev meson
+    doas apk add git curl msttcorefonts-installer python3 sqlite3 alpine-sdk cmake ffmpeg imagemagick-dev vips-dev gobject-introspection-dev cgif-dev libimagequant-dev meson
     ```
 === "Arch/Manjaro"
     ```sh
-    sudo pacman -S git curl cmake pango ffmpeg npm imagemagick libvips sqlite3 libltdl noto-fonts-emoji gobject-introspection libcgif libimagequant meson
+    sudo pacman -S git curl cmake pango ffmpeg npm imagemagick libvips sqlite3 libltdl gobject-introspection libcgif libimagequant meson
     ```
     You'll also need to install [`ttf-ms-win10-auto`](https://aur.archlinux.org/packages/ttf-ms-win10-auto/) from the AUR.
 
@@ -68,7 +73,7 @@ sudo meson install
 
 ### 3. Install Node.js.
 
-Node.js is the runtime that esmBot is built on top of. The bot requires version 16 or above to run.
+Node.js is the runtime that esmBot is built on top of. The bot requires version 18 or above to run.
 
 First things first, we'll need to install pnpm, the package manager used by the bot. Run the following to install it:
 ```sh
@@ -80,15 +85,20 @@ Once you've done that, continue with the instructions for your operating system 
 === "Debian/Ubuntu"
     You'll need a more recent version than what's provided in most Debian/Ubuntu-based distros. You can add a repository that contains a supported version by running this command:
     ```sh
-    curl -fsSL https://deb.nodesource.com/setup_16.x | sudo bash -
+    curl -fsSL https://deb.nodesource.com/setup_18.x | sudo bash -
     ```
     After that, you can install Node.js with this command:
     ```sh
     sudo apt-get install nodejs
     ```
 === "Fedora/RHEL"
+    On Fedora 37 and above, the package in the default repos should be good enough:
     ```sh
     sudo dnf install nodejs
+    ```
+    However, on RHEL, you'll need to add a separate repository before you run that command:
+    ```sh
+    curl -fsSL https://rpm.nodesource.com/setup_18.x | sudo bash -
     ```
 === "Alpine"
     ```sh
