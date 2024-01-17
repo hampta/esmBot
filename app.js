@@ -45,7 +45,8 @@ process.env.ESMBOT_VER = packageJson.version;
 const intents = [
   "GUILD_VOICE_STATES",
   "DIRECT_MESSAGES",
-  "GUILDS"
+  "GUILDS",
+  "GUILD_MEMBERS"
 ];
 if (commandConfig.types.classic) {
   intents.push("GUILD_MESSAGES");
