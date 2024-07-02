@@ -1,9 +1,11 @@
-import fs from "fs";
-import path from "path";
-import { fileURLToPath } from "url";
-import { Worker } from "worker_threads";
-import { createRequire } from "module";
-import { fileTypeFromBuffer, fileTypeFromFile } from "file-type";
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { Worker } from "node:worker_threads";
+import { createRequire } from "node:module";
+import { lookup } from "node:dns/promises";
+import ipaddr from "ipaddr.js";
+import { fileTypeFromBuffer } from "file-type";
 import logger from "./logger.js";
 import ImageConnection from "./imageConnection.js";
 
@@ -18,15 +20,21 @@ const formats = ["image/jpeg", "image/png", "image/webp", "image/gif", "video/mp
 export const connections = new Map();
 export let servers = process.env.API_TYPE === "ws" ? JSON.parse(fs.readFileSync(new URL("../config/servers.json", import.meta.url), { encoding: "utf8" })).image : [];
 
+/**
+ * @param {URL} image
+ * @param {boolean} extraReturnTypes
+ */
 export async function getType(image, extraReturnTypes) {
-  if (!image.startsWith("http")) {
-    const imageType = await fileTypeFromFile(image);
-    if (imageType && formats.includes(imageType.mime)) {
-      return imageType.mime;
-    }
-    return undefined;
+  try {
+    const remoteIP = await lookup(image.host);
+    const parsedIP = ipaddr.parse(remoteIP.address);
+    if (parsedIP.range() !== "unicast") return;
+  } catch (e) {
+    if (e.code === "ENOTFOUND") return;
+    throw e;
   }
   let type;
+  let url;
   const controller = new AbortController();
   const timeout = setTimeout(() => {
     controller.abort();
@@ -37,10 +45,24 @@ export async function getType(image, extraReturnTypes) {
       method: "HEAD"
     });
     clearTimeout(timeout);
-    const size = imageRequest.headers.has("content-range") ? imageRequest.headers.get("content-range").split("/")[1] : imageRequest.headers.get("content-length");
-    if (parseInt(size) > 41943040 && extraReturnTypes) { // 40 MB
+    if (imageRequest.redirected) {
+      const redirectHost = new URL(imageRequest.url).host;
+      const remoteIP = await lookup(redirectHost);
+      const parsedIP = ipaddr.parse(remoteIP.address);
+      if (parsedIP.range() !== "unicast") return;
+    }
+    url = imageRequest.url;
+    let size = 0;
+    if (imageRequest.headers.has("content-range")) {
+      const contentRange = imageRequest.headers.get("content-range");
+      if (contentRange) size = Number.parseInt(contentRange.split("/")[1]);
+    } else if (imageRequest.headers.has("content-length")) {
+      const contentLength = imageRequest.headers.get("content-length");
+      if (contentLength) size = Number.parseInt(contentLength);
+    }
+    if (size > 41943040 && extraReturnTypes) { // 40 MB
       type = "large";
-      return type;
+      return { type };
     }
     const typeHeader = imageRequest.headers.get("content-type");
     if (typeHeader) {
@@ -49,7 +71,7 @@ export async function getType(image, extraReturnTypes) {
       const timeout = setTimeout(() => {
         controller.abort();
       }, 3000);
-      const bufRequest = await fetch(image, {
+      const bufRequest = await fetch(url, {
         signal: controller.signal,
         headers: {
           range: "bytes=0-1023"
@@ -65,7 +87,7 @@ export async function getType(image, extraReturnTypes) {
   } finally {
     clearTimeout(timeout);
   }
-  return type;
+  return { type, url };
 }
 
 function connect(server, auth) {

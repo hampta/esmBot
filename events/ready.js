@@ -3,9 +3,12 @@ import { send } from "../utils/handler.js";
 import { generateList, createPage } from "../utils/help.js";
 import logger from "../utils/logger.js";
 
-import commandsConfig from "../config/commands.json" assert { type: "json" };
+import commandsConfig from "../config/commands.json" with { type: "json" };
 let ready = false;
 
+/**
+ * @param {import("oceanic.js").Client} client
+ */
 export default async (client) => {
   if (ready) return;
 
@@ -31,7 +34,7 @@ export default async (client) => {
 
   ready = true;
 
-  if (process.env.PM2_USAGE) process.send("ready");
+  if (process.env.PM2_USAGE) process.send?.("ready");
   
   logger.log("info", "Started esmBot.");
 };

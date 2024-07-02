@@ -1,30 +1,43 @@
-if (process.versions.node.split(".")[0] < 18) {
+const [ major, minor ] = process.versions.node.split(".").map(Number);
+if (major < 18 || (major === 18 && minor < 20)) {
   console.error(`You are currently running Node.js version ${process.version}.
-esmBot requires Node.js version 18 or above.
-Please refer to step 3 of the setup guide: https://docs.esmbot.net/setup/#3-install-nodejs`);
+esmBot requires Node.js version 18.20.0 or above.
+Please refer to step 2 of the setup guide: https://docs.esmbot.net/setup/#2-install-nodejs`);
   process.exit(1);
 }
 if (process.platform === "win32") {
   console.error("\x1b[1m\x1b[31m\x1b[40m" + `WINDOWS IS NOT OFFICIALLY SUPPORTED!
-Although there's a (very) slim chance of it working, multiple aspects of the bot are built with UNIX-like systems in mind and could break on Win32-based systems. If you want to run the bot on Windows, using Windows Subsystem for Linux is highly recommended.
-The bot will continue to run past this message in 5 seconds, but keep in mind that it could break at any time. Continue running at your own risk; alternatively, stop the bot using Ctrl+C and install WSL.` + "\x1b[0m");
+Although there's a (very) slim chance of it working, multiple aspects of esmBot are built with UNIX-like systems in mind and could break on Win32-based systems. If you want to run esmBot on Windows, using Windows Subsystem for Linux is highly recommended.
+esmBot will continue to run past this message in 5 seconds, but keep in mind that it could break at any time. Continue running at your own risk; alternatively, stop the bot using Ctrl+C and install WSL.` + "\x1b[0m");
   Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 5000);
 }
 
 // load config from .env file
 import "dotenv/config";
 
+if (!process.env.TOKEN) {
+  console.error(`No token was provided!
+esmBot requires a valid Discord bot token to function. Generate a new token from the "Bot" tab in your Discord application settings and paste it into your .env file.`);
+  process.exit(1);
+}
+
+if (process.env.TOKEN.length < 59) {
+  console.error(`Incorrect bot token length!
+You may have accidentally copied the OAuth2 client secret. Try generating a new token from the "Bot" tab in your Discord application settings.`);
+  process.exit(1);
+}
+
 import { reloadImageConnections } from "./utils/image.js";
 
 // main services
-import { Client } from "oceanic.js";
+import { Client, Constants } from "oceanic.js";
 // some utils
-import { promises } from "fs";
+import { promises } from "node:fs";
 import logger from "./utils/logger.js";
-import { exec as baseExec } from "child_process";
-import { promisify } from "util";
-import { resolve, dirname } from "path";
-import { fileURLToPath } from "url";
+import { exec as baseExec } from "node:child_process";
+import { promisify } from "node:util";
+import { resolve, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 const exec = promisify(baseExec);
 // initialize command loader
 import { load } from "./utils/handler.js";
@@ -38,21 +51,24 @@ import { reload, connect, connected } from "./utils/soundplayer.js";
 import { endBroadcast, startBroadcast } from "./utils/misc.js";
 import { parseThreshold } from "./utils/tempimages.js";
 
-import commandConfig from "./config/commands.json" assert { type: "json" };
-import packageJson from "./package.json" assert { type: "json" };
+import commandConfig from "./config/commands.json" with { type: "json" };
+import packageJson from "./package.json" with { type: "json" };
 process.env.ESMBOT_VER = packageJson.version;
 
 const intents = [
-  "GUILD_VOICE_STATES",
-  "DIRECT_MESSAGES",
-  "GUILDS",
-  "GUILD_MEMBERS"
+  Constants.Intents.GUILD_VOICE_STATES,
+  Constants.Intents.DIRECT_MESSAGES,
+  Constants.Intents.GUILDS
 ];
 if (commandConfig.types.classic) {
-  intents.push("GUILD_MESSAGES");
-  intents.push("MESSAGE_CONTENT");
+  intents.push(Constants.Intents.GUILD_MESSAGES);
+  intents.push(Constants.Intents.MESSAGE_CONTENT);
 }
 
+/**
+ * @param {string} dir
+ * @returns {AsyncGenerator<string>}
+ */
 async function* getFiles(dir) {
   const dirents = await promises.readdir(dir, { withFileTypes: true });
   for (const dirent of dirents) {
@@ -123,7 +139,7 @@ if (database) {
 }
 if (process.env.API_TYPE === "ws") await reloadImageConnections();
 
-const shardArray = process.env.SHARDS ? JSON.parse(process.env.SHARDS)[process.env.pm_id - 1] : null;
+const shardArray = process.env.SHARDS && process.env.pm_id ? JSON.parse(process.env.SHARDS)[Number.parseInt(process.env.pm_id) - 1] : null;
 
 // create the oceanic client
 const client = new Client({
@@ -149,7 +165,9 @@ const client = new Client({
   },
   collectionLimits: {
     messages: 50,
-    channels: !commandConfig.types.classic ? 0 : Infinity
+    channels: !commandConfig.types.classic ? 0 : Number.POSITIVE_INFINITY,
+    guildThreads: !commandConfig.types.classic ? 0 : Number.POSITIVE_INFINITY,
+    emojis: 0
   }
 });
 
@@ -186,7 +204,7 @@ if (process.env.PM2_USAGE) {
       pm2Bus.on("process:msg", async (packet) => {
         switch (packet.data?.type) {
           case "reload":
-            await load(client, paths.get(packet.data.message), true);
+            await load(client, paths.get(packet.data.message));
             break;
           case "soundreload":
             await reload(client);
@@ -208,7 +226,8 @@ if (process.env.PM2_USAGE) {
                 type: "serverCounts",
                 guilds: client.guilds.size,
                 shards: client.shards.map((v) => {
-                  return { id: v.id, procId: process.env.pm_id - 1, latency: v.latency, status: v.status };
+                  if (!process.env.pm_id) return;
+                  return { id: v.id, procId: Number.parseInt(process.env.pm_id) - 1, latency: v.latency, status: v.status };
                 })
               },
               topic: true

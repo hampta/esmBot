@@ -1,7 +1,7 @@
 import { clean } from "../../utils/misc.js";
-import * as util from "util";
-import { exec as baseExec } from "child_process";
-const exec = util.promisify(baseExec);
+import { promisify } from "node:util";
+import { exec as baseExec } from "node:child_process";
+const exec = promisify(baseExec);
 import Command from "../../classes/command.js";
 
 class ExecCommand extends Command {
@@ -38,12 +38,12 @@ class ExecCommand extends Command {
     name: "cmd",
     type: 3,
     description: "The command to execute",
+    classic: true,
     required: true
   }];
 
   static description = "Executes a shell command";
   static aliases = ["runcmd"];
-  static args = ["[command]"];
   static adminOnly = true;
 }
 

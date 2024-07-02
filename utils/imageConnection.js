@@ -1,6 +1,6 @@
 import WebSocket from "ws";
 import logger from "./logger.js";
-import { setTimeout } from "timers/promises";
+import { setTimeout } from "node:timers/promises";
 
 const Rerror = 0x01;
 const Tqueue = 0x02;
@@ -148,7 +148,7 @@ class ImageConnection {
       }
     });
     if (req.statusCode !== 200) return;
-    const res = parseInt(await req.text());
+    const res = Number.parseInt(await req.text());
     return res;
   }
 
