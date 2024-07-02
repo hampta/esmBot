@@ -1,12 +1,12 @@
-import util from "util";
+import util from "node:util";
 const pm2 = process.env.PM2_USAGE ? (await import("pm2")).default : null;
 import { config } from "dotenv";
 import db from "./database.js";
 import { servers } from "./image.js";
 
 // playing messages
-import messagesConfig from "../config/messages.json" assert { type: "json" };
-import commandsConfig from "../config/commands.json" assert { type: "json" };
+import messagesConfig from "../config/messages.json" with { type: "json" };
+import commandsConfig from "../config/commands.json" with { type: "json" };
 
 let broadcast = false;
 
@@ -91,7 +91,7 @@ export function endBroadcast(bot) {
 
 export function getServers(bot) {
   return new Promise((resolve, reject) => {
-    if (process.env.PM2_USAGE) {
+    if (pm2) {
       pm2.launchBus((_err, pm2Bus) => {
         const listener = (packet) => {
           if (packet.data?.type === "countResponse") {
@@ -100,22 +100,27 @@ export function getServers(bot) {
           }
         };
         pm2Bus.on("process:msg", listener);
-      });
-      pm2.list((err, list) => {
-        if (err) {
-          reject(err);
-          return;
-        }
-        const managerProc = list.filter((v) => v.name === "esmBot-manager")[0];
-        pm2.sendDataToProcessId(managerProc.pm_id, {
-          id: managerProc.pm_id,
-          type: "process:msg",
-          data: {
-            type: "getCount"
-          },
-          topic: true
-        }, (err) => {
-          if (err) reject(err);
+
+        pm2.list((err, list) => {
+          if (err) {
+            reject(err);
+            return;
+          }
+          const managerProc = list.filter((v) => v.name === "esmBot-manager")[0];
+          if (!managerProc) {
+            pm2Bus.off("process:msg");
+            return resolve(bot.guilds.size);
+          }
+          pm2.sendDataToProcessId(managerProc.pm_id, {
+            id: managerProc.pm_id,
+            type: "process:msg",
+            data: {
+              type: "getCount"
+            },
+            topic: true
+          }, (err) => {
+            if (err) reject(err);
+          });
         });
       });
     } else {
@@ -160,4 +165,8 @@ export function cleanMessage(message, content) {
   }
 
   return textEncode(cleanContent);
+}
+
+export function isEmpty(string) {
+  return string.length === 0 || string.replace(/[\s\u200B-\u200D\uFEFF]/g, "").length === 0;
 }

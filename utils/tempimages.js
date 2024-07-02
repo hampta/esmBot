@@ -1,13 +1,21 @@
 import logger from "../utils/logger.js";
-import { readdir, lstat, rm, writeFile, stat } from "fs/promises";
+import { readdir, lstat, rm, writeFile, stat } from "node:fs/promises";
 
 let dirSizeCache;
 
-export async function upload(client, result, context, interaction = false) {
+/**
+ * @param {import("oceanic.js").Client} client
+ * @param {{ name: string; contents: Buffer; flags?: number; }} result
+ * @param {import("oceanic.js").CommandInteraction | import("oceanic.js").Message} context
+ */
+export async function upload(client, result, context, success = true, interaction = false) {
   const filename = `${Math.random().toString(36).substring(2, 15)}.${result.name.split(".")[1]}`;
   await writeFile(`${process.env.TEMPDIR}/${filename}`, result.contents);
   const imageURL = `${process.env.TMP_DOMAIN || "https://tmp.esmbot.net"}/${filename}`;
-  const payload = {
+  const payload = result.name.startsWith("SPOILER_") ? {
+    content: `The result image was more than 25MB in size, so it was uploaded to an external site instead.\n|| ${imageURL} ||`,
+    flags: result.flags ?? (success ? 0 : 64)
+  } : {
     embeds: [{
       color: 16711680,
       title: "Here's your image!",
@@ -18,7 +26,8 @@ export async function upload(client, result, context, interaction = false) {
       footer: {
         text: "The result image was more than 25MB in size, so it was uploaded to an external site instead."
       },
-    }]
+    }],
+    flags: result.flags ?? (success ? 0 : 64)
   };
   if (interaction) {
     await context[context.acknowledged ? "createFollowup" : "createMessage"](payload);
@@ -43,6 +52,8 @@ export async function upload(client, result, context, interaction = false) {
 }
 
 async function removeOldImages(s) {
+  if (!process.env.THRESHOLD || process.env.THRESHOLD === "") return;
+  if (!process.env.TEMPDIR || process.env.TEMPDIR === "") return;
   let size = s;
   if (size > process.env.THRESHOLD) {
     const files = (await readdir(process.env.TEMPDIR)).map((file) => {
@@ -57,7 +68,7 @@ async function removeOldImages(s) {
     });
     
     const resolvedFiles = await Promise.all(files);
-    const oldestFiles = resolvedFiles.filter(Boolean).sort((a, b) => a.ctime - b.ctime);
+    const oldestFiles = resolvedFiles.filter(Boolean).sort((a, b) => a.ctime.getTime() - b.ctime.getTime());
 
     do {
       if (!oldestFiles[0]) break;
@@ -75,6 +86,8 @@ async function removeOldImages(s) {
 }
 
 export async function parseThreshold() {
+  if (!process.env.THRESHOLD || process.env.THRESHOLD === "") return;
+  if (!process.env.TEMPDIR || process.env.TEMPDIR === "") return;
   const matched = process.env.THRESHOLD.match(/(\d+)([KMGT])/);
   const sizes = {
     K: 1024,

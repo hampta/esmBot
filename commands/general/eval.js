@@ -23,9 +23,8 @@ class EvalCommand extends Command {
             name: "result.txt"
           }]
         };
-      } else {
-        return sendString;
       }
+      return sendString;
     } catch (err) {
       let error = err;
       if (err?.constructor?.name === "Promise") error = await err;
@@ -37,12 +36,12 @@ class EvalCommand extends Command {
     name: "code",
     type: 3,
     description: "The code to execute",
+    classic: true,
     required: true
   }];
 
   static description = "Executes JavaScript code";
   static aliases = ["run"];
-  static args = ["[code]"];
   static adminOnly = true;
 }
 

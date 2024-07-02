@@ -1,10 +1,11 @@
+import { Constants } from "oceanic.js";
 import Command from "../../classes/command.js";
 import { commands, aliases, info, categories } from "../../utils/collections.js";
 
 // all-in-one music command
 class MusicAIOCommand extends Command {
   async run() {
-    let cmd = this.type === "classic" ? this.args[0] : this.optionsArray[0].name;
+    let cmd = this.type === "classic" ? this.args[0] : this.interaction?.data.options.getSubCommand()?.[0];
     if (cmd === "music" || this.constructor.aliases.includes(cmd)) return "https://esmbot.net/robotdance.gif";
     await this.acknowledge();
     if (this.type === "classic") {
@@ -19,10 +20,9 @@ class MusicAIOCommand extends Command {
       const result =  await inst.run();
       this.success = inst.success;
       return result;
-    } else {
-      this.success = false;
-      return "That isn't a valid music command!";
     }
+    this.success = false;
+    return "That isn't a valid music command!";
   }
 
   static postInit() {
@@ -32,7 +32,7 @@ class MusicAIOCommand extends Command {
       const cmdInfo = info.get(cmd);
       this.flags.push({
         name: cmd,
-        type: 1,
+        type: Constants.ApplicationCommandOptionTypes.SUB_COMMAND,
         description: cmdInfo.description,
         options: cmdInfo.flags
       });
@@ -43,6 +43,7 @@ class MusicAIOCommand extends Command {
   static description = "Handles music playback";
   static aliases = ["m"];
   static directAllowed = false;
+  static userAllowed = false;
 }
 
 export default MusicAIOCommand;

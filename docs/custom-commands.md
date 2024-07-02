@@ -49,9 +49,10 @@ The parameters available to your command consist of the following:
 - `this.type`: The type of message that activated the command. Can be "classic" (a regular message) or "application" (slash/context menu commands).
 - `this.channel`: An Oceanic [`TextChannel`](https://docs.oceanic.ws/latest/classes/TextChannel.TextChannel.html) object of the channel that the command was run in, useful for getting info about a server and how to respond to a message. Partial when classic commands are disabled.
 - `this.guild`: An Oceanic [`Guild`](https://docs.oceanic.ws/latest/classes/Guild.Guild.html) object of the guild that the command was run in. This is undefined in DMs.
-- `this.author`: An Oceanic [`User`](https://docs.oceanic.ws/latest/classes/User.User.html) object of the user who ran the command, or a [`Member`](https://docs.oceanic.ws/latest/classes/Member.Member.html) object identical to `this.member` if run in a server as a slash command.
-- `this.member`: An Oceanic [`Member`](https://docs.oceanic.ws/latest/classes/Member.Member.html) object of the server member who ran the command. When running the command outside of a server, this parameter is undefined when run as a "classic" command or a [`User`](https://docs.oceanic.ws/latest/classes/User.User.html) object identical to `this.author` when run as a slash command.
+- `this.author`: An Oceanic [`User`](https://docs.oceanic.ws/latest/classes/User.User.html) object of the user who ran the command.
+- `this.member`: An Oceanic [`Member`](https://docs.oceanic.ws/latest/classes/Member.Member.html) object of the server member who ran the command. When running the command outside of a server, this parameter is undefined.
 - `this.permissions`: An Oceanic [`Permission`](https://docs.oceanic.ws/latest/classes/Permission.Permission.html) object of the bot's current permissions for a channel.
+- `this.memberPermissions`: An Oceanic [`Permission`](https://docs.oceanic.ws/latest/classes/Permission.Permission.html) object of the user who ran the commands's current permissions for a channel.
 - `this.options`: When run as a "classic" command, this is an object of special arguments (e.g. `--argument=true`) passed to the command. These arguments are stored in a key/value format, so following the previous example, `this.options.argument` would return true. When run as a slash command, this is an object of every argument passed to the command.
 
 Some options are only available depending on the context/original message type, which can be checked with `this.type`. The options only available with "classic" messages are listed below:
@@ -64,7 +65,6 @@ Some options are only available depending on the context/original message type, 
 The options only available with application (slash and context menu) commands are listed below:
 
 - `this.interaction`: An Oceanic [`CommandInteraction`](https://docs.oceanic.ws/latest/classes/CommandInteraction.CommandInteraction.html) object of the incoming slash command data.
-- `this.optionsArray`: A raw array of command options. Should rarely be used.
 - `this.success`: A boolean value that causes the bot to respond with a normal message when set to `true`, or an "ephemeral" message (a message that's only visible to the person who ran the command) when set to `false`.
 - `this.edit`: A boolean value that causes the bot to respond by editing the original message when set to `true`, or by creating a followup message when set to `false`.
 
@@ -72,7 +72,6 @@ Some static fields are also available and can be set depending on your command. 
 
 - `description`: Your command's description, which is shown in the help command.
 - `aliases`: An array of command aliases. People will be able to run the command using these as well as the normal command name.
-- `arguments`: An array of command argument types, which are shown in the help command.
 - `flags`: An array of objects specifying command flags, or special arguments, that will be shown when running `help <command>` or a slash command. Example:
 ```js
 static flags = [{
@@ -84,6 +83,7 @@ static flags = [{
 ```
 - `slashAllowed`: Specifies whether or not the command is available via slash commands.
 - `directAllowed`: Specifies whether or not a command is available in direct messages.
+- `userAllowed`: Specifies whether or not a command is available when run in a user installation context.
 - `adminOnly`: Specifies whether or not a command should be limited to the bot owner(s).
 
 ## The `run` Function

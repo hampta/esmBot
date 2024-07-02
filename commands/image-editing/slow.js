@@ -1,11 +1,12 @@
+import { Constants } from "oceanic.js";
 import ImageCommand from "../../classes/imageCommand.js";
 
 class SlowCommand extends ImageCommand {
   params() {
-    const speed = parseInt(this.options.multiplier ?? this.args[0]);
+    const speed = Number.parseInt(this.options.multiplier ?? this.args[0]);
     return {
       slow: true,
-      speed: isNaN(speed) ? 2 : speed
+      speed: Number.isNaN(speed) ? 2 : speed
     };
   }
 
@@ -13,18 +14,19 @@ class SlowCommand extends ImageCommand {
     super.init();
     this.flags.push({
       name: "multiplier",
-      type: 4,
+      type: Constants.ApplicationCommandOptionTypes.INTEGER,
       description: "Set the speed multiplier (default: 2)",
-      min_value: 1
+      min_value: 1,
+      classic: true
     });
     return this;
   }
 
   static description = "Makes an image sequence slower";
   static aliases = ["slowdown", "slower", "gifspeed2"];
-  static args = ["{multiplier}"];
 
   static requiresGIF = true;
+  static alwaysGIF = true;
   static noImage = "You need to provide an image/GIF to slow down!";
   static command = "speed";
 }

@@ -4,7 +4,11 @@ import { commands, messageCommands } from "../utils/collections.js";
 import { clean } from "../utils/misc.js";
 import { upload } from "../utils/tempimages.js";
 
-// run when a slash command is executed
+/**
+ * Runs when a slash/ command is executed.
+ * @param {import("oceanic.js").Client} client
+ * @param {import("oceanic.js").AnyInteractionGateway} interaction
+ */
 export default async (client, interaction) => {
   // block if client is not ready yet
   if (!client.ready) return;
@@ -29,9 +33,6 @@ export default async (client, interaction) => {
   // actually run the command
   logger.log("main", `${invoker.username} (${invoker.id}) ran application command ${command}`);
   try {
-    if (database) {
-      await database.addCount(command);
-    }
     // eslint-disable-next-line no-unused-vars
     const commandClass = new cmd(client, { type: "application", interaction });
     const result = await commandClass.run();
@@ -46,7 +47,7 @@ export default async (client, interaction) => {
         const fileSize = 26214400;
         if (result.contents.length > fileSize) {
           if (process.env.TEMPDIR && process.env.TEMPDIR !== "") {
-            await upload(client, result, interaction, true);
+            await upload(client, result, interaction, commandClass.success, true);
           } else {
             await interaction[replyMethod]({
               content: "The resulting image was more than 25MB in size, so I can't upload it.",
@@ -54,7 +55,10 @@ export default async (client, interaction) => {
             });
           }
         } else {
-          await interaction[replyMethod](result.text ? result.text : { files: [result] });
+          await interaction[replyMethod]({
+            flags: result.flags ?? (commandClass.success ? 0 : 64),
+            files: [result]
+          });
         }
       } else {
         await interaction[replyMethod](Object.assign({
@@ -83,13 +87,17 @@ export default async (client, interaction) => {
         await interaction[replyMethod]({
           content: "Uh oh! I ran into an error while running this command. Please report the content of the attached file at the following link or on the esmBot Support server: <https://github.com/esmBot/esmBot/issues>",
           files: [{
-            contents: `Message: ${clean(err)}\n\nStack Trace: ${clean(err.stack)}`,
+            contents: Buffer.from(`Message: ${clean(err)}\n\nStack Trace: ${clean(err.stack)}`),
             name: "error.txt"
           }]
         });
       } catch (e) {
         logger.error(`While attempting to send the previous error message, another error occurred: ${e.stack || e}`);
       }
+    }
+  } finally {
+    if (database) {
+      await database.addCount(command);
     }
   }
 };
